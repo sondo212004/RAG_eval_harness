@@ -65,14 +65,14 @@ chỉ dùng tài liệu gốc công khai**, tái lập được bằng một l�
 | AC5 | `tests/domain/test_compare.py` — `test_route_p95_regression_fails` | ☑ (ImportError) | ☐ |
 | AC6 | `tests/domain/test_compare.py` — `test_within_threshold_passes_with_diff_table` | ☑ (ImportError) | ☐ |
 | AC7 | `tests/app/test_run_bench.py` — `test_route_accuracy_latency_tokens_cost_per_route` + `tests/domain/test_routing.py` | ☑ (ImportError) | ☐ |
-| AC8 | `tests/infra/test_tracing.py` — `test_no_key_local_only`, `test_key_sends_to_fake_client` | ☐ | ☐ |
+| AC8 | `tests/infra/test_tracing.py` — `test_no_key_local_only`, `test_key_sends_to_fake_client` | ☑ (ImportError) | ☐ |
 | AC9 | `tests/app/test_report.py` — `test_inserts_between_markers`, `test_idempotent` | ☑ (ImportError) | ☐ |
 | AC10 | `tests/test_architecture.py` — `test_domain_has_no_forbidden_imports` | ☐ (chưa quan sát đỏ — có test tự kiểm `test_checker_detects_violation`) | ☐ |
 | AC11 | `tests/domain/test_forbidden.py` — `test_detects_forbidden_string_case_insensitive`; `tests/test_forbidden_strings.py` — `test_tracked_files_clean` (danh sách từ env `FORBIDDEN_STRINGS` / `config/forbidden_strings.txt`) | ☑ (ImportError) | ☐ |
 | AC12 | `tests/app/test_fetch.py` — `test_checksum_mismatch_skipped_batch_continues` | ☑ (ImportError) | ☐ |
-| AC13 | `tests/infra/test_provider_factory.py` — `test_selects_adapter`, `test_unknown_provider_config_invalid` | ☐ | ☐ |
+| AC13 | `tests/infra/test_provider_factory.py` — `test_selects_adapter`, `test_unknown_provider_config_invalid` | ☑ (ImportError) | ☐ |
 | AC14 | `tests/app/test_promote.py` — `test_promote_valid`, `test_reject_incomplete_or_missing` | ☑ (ImportError) | ☐ |
-| AC15 | `tests/app/test_ingest.py` — `test_ingest_reproducible_chunk_ids` | ☐ | ☐ |
+| AC15 | `tests/app/test_ingest.py` — `test_ingest_reproducible_chunk_ids`; `tests/infra/test_chunker.py` — `test_ingest_reproducible_chunk_ids` | ☑ (ImportError) | ☐ |
 | Mục 6 | `tests/app/test_run_eval.py`, `tests/app/test_compare_runs.py`, `tests/app/test_promote.py`, `tests/domain/test_compare.py` — mỗi mã lỗi ≥ 1 test; `CONFIG_MISSING` / `CONFIG_INVALID` ở tầng infra | ☑ (ImportError, trừ infra) | ☐ |
 
 ## 6. Case lỗi & biên
@@ -91,6 +91,10 @@ chỉ dùng tài liệu gốc công khai**, tái lập được bằng một l�
 | Domain có trong baseline nhưng mất điểm ở run mới (mọi mục lỗi, tổng lỗi ≤ 10%) | `compare` báo vi phạm `<domain>.missing`, exit ≠ 0 | — |
 | `compare` / `promote` với run không tồn tại | Dừng, báo đường dẫn | `RUN_NOT_FOUND` |
 | README thiếu marker `results:start/end` | Dừng, không sửa README | `REPORT_MARKERS_MISSING` |
+| LLM / chatbot trả 4xx (sai key, sai request) | Không retry, dừng run — lỗi phía cấu hình harness | `PROVIDER_REJECTED` |
+| Chatbot ngoài trả response không khớp `AskResponse` | Dừng run, báo vi phạm contract | `CONTRACT_VIOLATION` |
+| Corpus có định dạng ngoài pdf/html/txt | Dừng ingest, báo file | `CORPUS_UNSUPPORTED` |
+| Manifest thiếu field / thiếu cả `url` lẫn `zip_path` | Dừng, liệt kê mục lỗi | `CONFIG_INVALID` |
 
 ## 7. Ảnh hưởng kỹ thuật
 - Repo mới, không đụng hệ thống nào khác.
@@ -141,7 +145,7 @@ chỉ dùng tài liệu gốc công khai**, tái lập được bằng một l�
 **Vòng 6 (2026-10-26)**
 - Gate latency: p95 **từ `bench`, theo từng route**, > 1.2 × baseline → fail.
 - `make reproduce` **offline** (compare + report trên `results/` đã commit, không cần key); `make reproduce-live` chạy fetch → ingest → eval → bench → compare → report.
-- Retrieval: fetch_k 30 → lọc score ≥ 0.7 → rerank **FlashRank** (`ms-marco-TinyBERT-L-2-v2`) → top_k 5.
+- Retrieval: fetch_k 30 → lọc score ≥ 0.7 (đổi 0.5 ở Vòng 10) → rerank **FlashRank** (`ms-marco-TinyBERT-L-2-v2`) → top_k 5.
 
 **Vòng 7 (2026-10-26) — người dùng chốt spec**
 - Đồng ý AC14 (`promote`), AC15 (ingest tái lập).
@@ -153,6 +157,14 @@ chỉ dùng tài liệu gốc công khai**, tái lập được bằng một l�
 - RAG tham chiếu chọn route bằng **LLM phân loại** (structured output: `rag_retrieval` | `direct_answer`).
 - Bộ routing **~40 câu** (20/20), LLM nháp + duyệt tay, mỗi mục `id`, `question`, `expected_route`, `reviewed`.
 - Dataset dạng **JSONL**: `datasets/qa.jsonl`, `datasets/routing.jsonl`.
+
+
+**Vòng 9 (2026-10-26) — tầng infra**
+- Judge RAGAS gọi Gemini qua **SDK `openai` → endpoint OpenAI-compatible** của Gemini; `openai` thành dependency trực tiếp. Cả 3 provider (gemini / openai / ollama) dùng chung client này, chỉ khác `base_url` + biến key.
+- Embedding cho AnswerRelevancy: **bge-m3 local** (dùng chung với RAG).
+
+**Vòng 10 (2026-10-26) — sau smoke test**
+- Ngưỡng score retrieval **0.7 → 0.5**: smoke test bge-m3 cho cặp câu hỏi ↔ đoạn đúng chỉ đạt 0.68, ngưỡng 0.7 sẽ loại mất context đúng. Hiệu chỉnh lại khi có bộ Q/A thật.
 
 ## 9b. Câu hỏi mở
 _(không còn)_

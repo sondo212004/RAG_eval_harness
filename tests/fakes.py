@@ -1,5 +1,6 @@
 """Fake cho các port của app/ — biên ngoài (LLM, file, thời gian) đều giả, domain dùng đồ thật."""
 
+import hashlib
 from datetime import UTC, datetime
 
 from rag_eval_harness.app.ports import ChatAnswer
@@ -119,3 +120,32 @@ class FakeSink:
 
     def save(self, name, content):
         self.saved[name] = content
+
+
+class FakeEmbedder:
+    dim = 4
+
+    def embed(self, texts):
+        out = []
+        for t in texts:
+            h = hashlib.sha256(t.encode()).digest()
+            out.append([b / 255 for b in h[: self.dim]])
+        return out
+
+
+class FakeIndex:
+    def __init__(self):
+        self.points = []
+        self.recreated = 0
+        self.batch_sizes = []
+
+    def recreate(self, dim):
+        self.recreated += 1
+        self.points = []
+
+    def upsert(self, points):
+        self.batch_sizes.append(len(points))
+        self.points += points
+
+    def ids(self):
+        return [p["id"] for p in self.points]

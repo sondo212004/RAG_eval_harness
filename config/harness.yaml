@@ -1,0 +1,42 @@
+# Cấu hình harness — SPEC-001. Key/secret KHÔNG để ở đây (đọc từ .env).
+
+provider: gemini            # gemini | openai | ollama
+models:
+  generator: gemini-2.5-flash
+  judge: gemini-2.5-flash
+temperature: 0
+
+pricing:                    # USD / 1M token — cập nhật khi đổi model
+  input_per_1m: 0.30
+  output_per_1m: 2.50
+
+embedding:
+  model: BAAI/bge-m3
+  dim: 1024
+
+chunking:                   # đơn vị: ký tự
+  parent_size: 3000
+  parent_overlap: 200
+  child_size: 500
+  child_overlap: 50
+
+retrieval:
+  fetch_k: 30
+  score_threshold: 0.5        # bge-m3: câu hỏi ↔ đoạn liên quan thường 0.5–0.7 (smoke test 2026-10-26)
+  top_k: 5
+  reranker: ms-marco-TinyBERT-L-2-v2
+
+adapter: reference          # reference = RAG trong repo | http = chatbot ngoài theo contracts/
+http:
+  base_url: ""              # vd http://localhost:8000
+  timeout_s: 60
+
+collection: corpus
+paths:
+  qa_dataset: datasets/qa.jsonl
+  routing_dataset: datasets/routing.jsonl
+  manifest: corpus/manifest.jsonl
+  corpus_dir: data/corpus
+  results_dir: results
+  qdrant_dir: .qdrant
+  cache_dir: .cache
