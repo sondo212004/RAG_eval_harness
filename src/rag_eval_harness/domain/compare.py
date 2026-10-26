@@ -46,7 +46,8 @@ def compare(baseline: RunSummary, current: RunSummary) -> CompareResult:
 
     for scope, base_metrics in baseline.scores.items():
         cur_metrics = current.scores.get(scope)
-        if cur_metrics is None:
+        if cur_metrics is None:  # cả domain mất điểm (mọi mục lỗi) → không được lặng lẽ bỏ qua
+            violations.append(f"{scope}.missing")
             continue
         for metric, base in base_metrics.items():
             if metric not in cur_metrics:

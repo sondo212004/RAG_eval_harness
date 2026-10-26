@@ -6,7 +6,7 @@ from dataclasses import dataclass
 
 from .errors import AppError
 
-DOMAINS = frozenset({"legal", "hardware", "om", "scada"})
+DOMAINS = ("legal", "hardware", "om", "scada")  # thứ tự hiển thị trong báo cáo
 REQUIRED_FIELDS = ("id", "question", "ground_truth", "gold_contexts", "domain", "source", "reviewed")
 
 
@@ -42,15 +42,7 @@ def parse_dataset(records: list[dict]) -> list[QAItem]:
     if errors:
         raise AppError("DATASET_INVALID", f"{len(errors)} lỗi trong dataset", errors)
 
-    counts = Counter(r["id"] for r in records)
-    duplicates = [i for i, n in counts.items() if n > 1]
-    if duplicates:
-        raise AppError(
-            "DATASET_DUPLICATE_ID",
-            f"id trùng: {', '.join(duplicates)}",
-            [{"item": i, "field": "id", "rule": "unique"} for i in duplicates],
-        )
-
+    ensure_unique_ids(records)
     return [
         QAItem(
             id=r["id"],
@@ -65,7 +57,18 @@ def parse_dataset(records: list[dict]) -> list[QAItem]:
     ]
 
 
-def filter_reviewed(items: list[QAItem]) -> tuple[list[QAItem], int]:
+def ensure_unique_ids(records: list[dict]) -> None:
+    counts = Counter(r["id"] for r in records)
+    duplicates = [i for i, n in counts.items() if n > 1]
+    if duplicates:
+        raise AppError(
+            "DATASET_DUPLICATE_ID",
+            f"id trùng: {', '.join(duplicates)}",
+            [{"item": i, "field": "id", "rule": "unique"} for i in duplicates],
+        )
+
+
+def filter_reviewed[T](items: list[T]) -> tuple[list[T], int]:
     """Trả (mục đã duyệt, số mục bị loại)."""
     kept = [i for i in items if i.reviewed]
     return kept, len(items) - len(kept)

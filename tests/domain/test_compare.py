@@ -45,9 +45,19 @@ def test_metric_drop_below_threshold_passes():
     assert compare(_run(), current).passed
 
 
-def test_domain_missing_on_one_side_is_skipped():
+def test_domain_missing_in_current_fails():
     current = _run()
-    del current.scores["legal"]
+    del current.scores["legal"]  # vd: mọi câu legal đều lỗi nhưng tổng lỗi < 10%
+
+    result = compare(_run(), current)
+
+    assert not result.passed
+    assert result.violations == ["legal.missing"]
+
+
+def test_domain_only_in_current_is_ignored():
+    current = _run()
+    current.scores["om"] = {"faithfulness": 0.5}
 
     assert compare(_run(), current).passed
 

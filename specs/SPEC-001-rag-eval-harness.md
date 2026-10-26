@@ -60,20 +60,20 @@ chỉ dùng tài liệu gốc công khai**, tái lập được bằng một l�
 |---|---|---|---|
 | AC1 | `tests/domain/test_dataset.py` — `test_load_valid`, `test_missing_field`, `test_unknown_domain`, `test_duplicate_id` | ☑ (ImportError) | ☐ |
 | AC2 | `tests/domain/test_dataset.py` — `test_unreviewed_excluded_and_counted` | ☑ (ImportError) | ☐ |
-| AC3 | `tests/app/test_run_eval.py` — `test_result_has_per_item_domain_and_total_scores` | ☐ | ☐ |
+| AC3 | `tests/app/test_run_eval.py` — `test_result_has_per_item_domain_and_total_scores` | ☑ (ImportError) | ☐ |
 | AC4 | `tests/domain/test_compare.py` — `test_metric_drop_fails_total`, `test_metric_drop_fails_domain` | ☑ (ImportError) | ☐ |
 | AC5 | `tests/domain/test_compare.py` — `test_route_p95_regression_fails` | ☑ (ImportError) | ☐ |
 | AC6 | `tests/domain/test_compare.py` — `test_within_threshold_passes_with_diff_table` | ☑ (ImportError) | ☐ |
-| AC7 | `tests/app/test_run_bench.py` — `test_route_accuracy_latency_tokens_cost_per_route` | ☐ | ☐ |
+| AC7 | `tests/app/test_run_bench.py` — `test_route_accuracy_latency_tokens_cost_per_route` + `tests/domain/test_routing.py` | ☑ (ImportError) | ☐ |
 | AC8 | `tests/infra/test_tracing.py` — `test_no_key_local_only`, `test_key_sends_to_fake_client` | ☐ | ☐ |
-| AC9 | `tests/app/test_report.py` — `test_inserts_between_markers`, `test_idempotent` | ☐ | ☐ |
+| AC9 | `tests/app/test_report.py` — `test_inserts_between_markers`, `test_idempotent` | ☑ (ImportError) | ☐ |
 | AC10 | `tests/test_architecture.py` — `test_domain_has_no_forbidden_imports` | ☐ (chưa quan sát đỏ — có test tự kiểm `test_checker_detects_violation`) | ☐ |
-| AC11 | `tests/test_forbidden_strings.py` — `test_tracked_files_clean`, `test_detects_forbidden_string` | ☐ | ☐ |
-| AC12 | `tests/app/test_fetch.py` — `test_checksum_mismatch_skipped_batch_continues` | ☐ | ☐ |
+| AC11 | `tests/domain/test_forbidden.py` — `test_detects_forbidden_string_case_insensitive`; `tests/test_forbidden_strings.py` — `test_tracked_files_clean` (danh sách từ env `FORBIDDEN_STRINGS` / `config/forbidden_strings.txt`) | ☑ (ImportError) | ☐ |
+| AC12 | `tests/app/test_fetch.py` — `test_checksum_mismatch_skipped_batch_continues` | ☑ (ImportError) | ☐ |
 | AC13 | `tests/infra/test_provider_factory.py` — `test_selects_adapter`, `test_unknown_provider_config_invalid` | ☐ | ☐ |
-| AC14 | `tests/app/test_promote.py` — `test_promote_valid`, `test_reject_incomplete_or_missing` | ☐ | ☐ |
+| AC14 | `tests/app/test_promote.py` — `test_promote_valid`, `test_reject_incomplete_or_missing` | ☑ (ImportError) | ☐ |
 | AC15 | `tests/app/test_ingest.py` — `test_ingest_reproducible_chunk_ids` | ☐ | ☐ |
-| Mục 6 | `tests/app/test_errors.py` — mỗi mã lỗi 1 test (`RUN_EXISTS`, `PROVIDER_ERROR` retry 3, `RUN_INCOMPLETE` > 10%, `CONFIG_MISSING`, `BASELINE_NOT_FOUND`, `DATASET_MISMATCH`) | ☐ | ☐ |
+| Mục 6 | `tests/app/test_run_eval.py`, `tests/app/test_compare_runs.py`, `tests/app/test_promote.py`, `tests/domain/test_compare.py` — mỗi mã lỗi ≥ 1 test; `CONFIG_MISSING` / `CONFIG_INVALID` ở tầng infra | ☑ (ImportError, trừ infra) | ☐ |
 
 ## 6. Case lỗi & biên
 | Tình huống | Hành vi mong đợi | Mã lỗi |
@@ -88,6 +88,9 @@ chỉ dùng tài liệu gốc công khai**, tái lập được bằng một l�
 | File corpus sai sha256 / tải lỗi | Bỏ qua file, cảnh báo | `CORPUS_CHECKSUM_MISMATCH` |
 | Chạy eval 2 lần cùng `run_id` | Không ghi đè im lặng | `RUN_EXISTS` |
 | Tỉ lệ mục `error` > 10% | Run đánh dấu không hợp lệ, `compare` từ chối dùng | `RUN_INCOMPLETE` |
+| Domain có trong baseline nhưng mất điểm ở run mới (mọi mục lỗi, tổng lỗi ≤ 10%) | `compare` báo vi phạm `<domain>.missing`, exit ≠ 0 | — |
+| `compare` / `promote` với run không tồn tại | Dừng, báo đường dẫn | `RUN_NOT_FOUND` |
+| README thiếu marker `results:start/end` | Dừng, không sửa README | `REPORT_MARKERS_MISSING` |
 
 ## 7. Ảnh hưởng kỹ thuật
 - Repo mới, không đụng hệ thống nào khác.
@@ -144,6 +147,12 @@ chỉ dùng tài liệu gốc công khai**, tái lập được bằng một l�
 - Đồng ý AC14 (`promote`), AC15 (ingest tái lập).
 - Danh sách chuỗi cấm để trong config ngoài git hoặc dạng hash.
 - `prepare` = lấy file từ zip local (theo whitelist mục 11) cho tài liệu không còn URL gốc, kiểm sha256 như `fetch`.
+
+**Vòng 8 (2026-10-26) — làm rõ khi vào tầng app**
+- eval và bench **cùng `run_id`, 2 file**: `results/<run_id>.json` (eval) + `results/<run_id>.bench.json`; `make bench RUN=<id>`. `promote` copy cả hai thành `results/baseline.json` + `results/baseline.bench.json`. Thiếu bench → `compare` chỉ so RAGAS. Bench khác `dataset_version` routing → `DATASET_MISMATCH`.
+- RAG tham chiếu chọn route bằng **LLM phân loại** (structured output: `rag_retrieval` | `direct_answer`).
+- Bộ routing **~40 câu** (20/20), LLM nháp + duyệt tay, mỗi mục `id`, `question`, `expected_route`, `reviewed`.
+- Dataset dạng **JSONL**: `datasets/qa.jsonl`, `datasets/routing.jsonl`.
 
 ## 9b. Câu hỏi mở
 _(không còn)_
