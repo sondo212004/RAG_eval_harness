@@ -1,0 +1,24 @@
+# Corpus gốc + dữ liệu giải nén — không commit (SPEC-001 mục 11)
+*.zip
+data/raw/
+data/extracted/
+data/corpus/
+
+# Vector store local + cache model
+.qdrant/
+qdrant_data/
+.cache/
+
+# Chuỗi cấm thật (AC11) — chỉ commit bản mẫu
+config/forbidden_strings.txt
+
+# Secret
+.env
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+.ruff_cache/
+*.egg-info/

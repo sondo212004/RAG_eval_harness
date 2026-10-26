@@ -1,0 +1,91 @@
+openapi: 3.1.0
+info:
+  title: rag-eval-harness — HTTP chat adapter
+  version: 1.0.0
+  description: |
+    Contract tối thiểu mà một chatbot bên ngoài cần cung cấp để harness đo được
+    (SPEC-001 mục 7). Harness là **client**; chatbot là server.
+    Base URL lấy từ config (`adapter.http.base_url`), không hardcode.
+    Header `X-Request-ID` do harness sinh (IdGenerator) để nối log / trace.
+paths:
+  /api/v1/ask:
+    post:
+      operationId: ask
+      summary: Hỏi một câu, nhận câu trả lời kèm context đã dùng
+      parameters:
+        - name: X-Request-ID
+          in: header
+          required: true
+          schema: { type: string, minLength: 1, maxLength: 128 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AskRequest' }
+      responses:
+        '200':
+          description: Trả lời thành công
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AskResponse' }
+        '400':
+          description: Request sai
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '5XX':
+          description: Lỗi phía chatbot — harness retry tối đa 3 lần rồi đánh dấu mục `error` (PROVIDER_ERROR)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+components:
+  schemas:
+    AskRequest:
+      type: object
+      additionalProperties: false
+      required: [question]
+      properties:
+        question:
+          type: string
+          minLength: 1
+          maxLength: 4000
+    AskResponse:
+      type: object
+      required: [answer, contexts]
+      properties:
+        answer:
+          type: string
+        contexts:
+          description: Các đoạn văn bản đã đưa vào prompt; dùng cho faithfulness / context_recall. Rỗng nếu không truy xuất.
+          type: array
+          items: { type: string }
+        route:
+          description: Tuỳ chọn — đường xử lý thực tế, dùng cho độ chính xác routing (AC7). Thiếu thì bench báo route "unknown".
+          type: string
+          enum: [rag_retrieval, direct_answer]
+        usage:
+          description: Tuỳ chọn — token thực tế, dùng tính cost (AC7). Thiếu thì token/cost để trống.
+          $ref: '#/components/schemas/Usage'
+    Usage:
+      type: object
+      required: [input_tokens, output_tokens]
+      properties:
+        input_tokens: { type: integer, minimum: 0 }
+        output_tokens: { type: integer, minimum: 0 }
+    ErrorResponse:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code: { type: string }
+            message: { type: string }
+            details:
+              type: array
+              items:
+                type: object
+                properties:
+                  field: { type: string }
+                  rule: { type: string }

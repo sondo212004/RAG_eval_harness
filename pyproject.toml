@@ -1,0 +1,46 @@
+[project]
+name = "rag-eval-harness"
+version = "0.1.0"
+description = "Harness đánh giá RAG (RAGAS) và benchmark routing, tái lập bằng một lệnh"
+readme = "README.md"
+authors = [
+    { name = "sondo212004", email = "sondo212004@gmail.com" }
+]
+requires-python = ">=3.12"
+dependencies = [
+    "beautifulsoup4>=4.15.0",
+    "flashrank>=0.2.10",
+    "google-genai>=2.33.0",
+    "httpx>=0.28.1",
+    "langchain-community<0.4",
+    "langchain-core>=1.7.0",
+    "langchain-text-splitters>=1.1.3",
+    "langgraph>=1.2.17",
+    "langsmith>=0.14.12",
+    "pydantic>=2.14.1",
+    "pypdf>=6.21.2",
+    "pyyaml>=6.0.3",
+    "qdrant-client>=1.20.0",
+    "ragas>=0.4.3",
+    "sentence-transformers>=6.2.0",
+]
+
+[build-system]
+requires = ["uv_build>=0.8.2,<0.9.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+    "ruff>=0.17.2",
+]
+
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

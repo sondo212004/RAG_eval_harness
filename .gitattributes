@@ -1,0 +1,2 @@
+# LF ở mọi OS — dataset_version = sha256 file dataset, đổi CRLF sẽ đổi version
+* text=auto eol=lf
